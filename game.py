@@ -216,6 +216,7 @@ class GameManager:
         self.__stage_pos_x -= self.__speed_weight
         if (self.__stage_pos_x <= -117):
             self.__stage_pos_x = -(-117 - self.__stage_pos_x)
+            
 
     def __HurdleMove(self):
         for hurdle in list(self.__hurdle_num_que):
