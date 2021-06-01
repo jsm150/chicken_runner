@@ -14,10 +14,10 @@ class Character:
         self.current_img = None
 
         # 점프 변수
-        self.moving = False
-        self.__initial_speed = 20
-        self.__speed_weight = 1
-        self.__speed = self.__initial_speed
+        self.moving = None
+        self.__initial_speed = None
+        self.__speed_weight = None
+        self.__speed = None
 
     def Init(self, character_pos_x, character_pos_y, character_img_list, size):
         self.pos_x = character_pos_x
@@ -25,6 +25,11 @@ class Character:
         self.img_list = character_img_list
         self.size = size
         self.current_img = self.img_list[0]
+
+        self.moving = False
+        self.__initial_speed = 20
+        self.__speed_weight = 1
+        self.__speed = self.__initial_speed
         
     def JumpAction(self):
         if (not self.moving):
@@ -103,9 +108,11 @@ class GameManager:
         self.__speed_weight = 8
         self.__hurdle_num_que = deque()
         self.__target_point = self.__screen_width / 2
-        
-    def SetCharacter(self, character):
+
+    def CharacterAdd(self, character):
         self.__character = character
+        
+    def __SetCharacter(self):
         character_img_list = [ 
             pygame.image.load(os.path.join(self.__image_path, "character1.png")),
             pygame.image.load(os.path.join(self.__image_path, "character2.png"))
@@ -116,11 +123,15 @@ class GameManager:
         self.__character.Init(character_pos_x, character_pos_y, character_img_list, size)
 
     def GameStart(self):
-        self.__GameReady()
+        while (True):
+            self.__GameReset()
+            self.__GamePlay()
+            self.__GameEnd()
+
+    def __GamePlay(self):
         pygame.mixer.music.play(-1, 0, 0)
         while (self.__running):
             self.__clock.tick(60)
-            self.__AddHurdle()
             for event in pygame.event.get():
                 if (event.type == pygame.QUIT):
                     pygame.quit()
@@ -134,22 +145,6 @@ class GameManager:
             self.__DrawImages()
             self.__CollisionCheck()
             pygame.display.update()
-        self.__GameEnd()
-
-    def __GameReady(self):
-        score_path = os.path.join(self.__save_path, "high_score.txt")
-        if (os.path.exists(score_path)):
-            with open(score_path, "r", encoding="UTF-8") as r:
-                self.__high_score = int(float(r.read()))
-
-        self.__DrawImages()
-        pygame.display.update()
-        flag = True 
-        while (flag):
-            for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_SPACE:
-                        flag = False
 
     def __GameEnd(self):
         pygame.mixer.music.stop()
@@ -157,7 +152,7 @@ class GameManager:
             os.makedirs(self.__save_path)
 
         with open(os.path.join(self.__save_path, "high_score.txt"), "w", encoding="UTF-8") as w:
-            w.write(str(self.__high_score))
+            w.write(str(int(self.__high_score)))
 
         font = pygame.font.Font(None, 70)
         msg = font.render("Game Over", True, (255, 255, 0))
@@ -165,7 +160,34 @@ class GameManager:
         self.__screen.blit(msg, msg_rect)
 
         pygame.display.update()
-        pygame.time.delay(2000)
+        self.__GameWait()
+
+    def __GameWait(self):
+        wait = True 
+        while (wait):
+            for event in pygame.event.get():
+                if (event.type == pygame.QUIT):
+                    pygame.quit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE:
+                        wait = False
+
+    def __GameReset(self):
+        self.__SetCharacter()
+        self.__hurdle_num_que.clear()
+        self.__score = 0
+        self.__running = True
+        self.__speed_weight = 8
+        self.__target_point = self.__screen_width / 2
+
+        score_path = os.path.join(self.__save_path, "high_score.txt")
+        if (self.__high_score == 0 and os.path.exists(score_path)):
+            with open(score_path, "r", encoding="UTF-8") as r:
+                self.__high_score = int(r.read())
+
+        self.__DrawImages()
+        pygame.display.update()
+
 
     def __DrawImages(self):
         self.__screen.blit(self.__background_img, (0, 0))
@@ -186,6 +208,7 @@ class GameManager:
         if (int(self.__score) % 50 == 49):
             self.__speed_weight += 0.06
         self.__character.JumpAction()
+        self.__AddHurdle()
         self.__HurdleMove()
         self.__StageMove()
  
@@ -201,6 +224,8 @@ class GameManager:
             self.__hurdle_num_que.popleft()
 
     def __AddHurdle(self):
+        if (self.__score <= 30):
+            return
         if (len(self.__hurdle_num_que) != 0 and self.__hurdle_num_que[-1]["pos_x"] > self.__target_point):
             return
         i = randint(0, len(self.__tree_img_list) - 1)
@@ -233,6 +258,6 @@ class GameManager:
 #---------------------------
 
 game = GameManager.GetInstance()
-game.SetCharacter(Character())
+game.CharacterAdd(Character())
 game.GameStart()
 pygame.quit()
