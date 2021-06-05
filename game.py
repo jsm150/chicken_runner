@@ -6,31 +6,27 @@ from collections import deque
 
 
 class Character:
-    def __init__(self):
+    def __init__(self, image_path):
         # 캐릭터 설정
+        self.img_list = [pygame.image.load(os.path.join(image_path, f"character{i + 1}.png")) for i in range(2)]
+        self.size = self.img_list[0].get_rect().size
+        self.current_img = None
         self.pos_x = None
         self.pos_y = None
-        self.img_list = None
-        self.size = None
-        self.current_img = None
 
         # 점프 변수
-        self.moving = None
-        self.__initial_speed = None
-        self.__speed_weight = None
-        self.__speed = None
-
-    def Init(self, character_pos_x, character_pos_y, character_img_list, size):
-        self.pos_x = character_pos_x
-        self.pos_y = character_pos_y
-        self.img_list = character_img_list
-        self.size = size
-        self.current_img = self.img_list[0]
-
-        self.moving = False
         self.__initial_speed = 20
         self.__speed_weight = 1
+        self.__speed = None
+        self.moving = None
+
+    def Reset(self, character_pos_x, character_pos_y):
+        self.current_img = self.img_list[0]
+        self.pos_x = character_pos_x
+        self.pos_y = character_pos_y
+
         self.__speed = self.__initial_speed
+        self.moving = False
         
     def JumpAction(self):
         if (not self.moving):
@@ -46,7 +42,52 @@ class Character:
 
 
 class Hurdle:
-    pass
+    # 장애물 설정
+    def __init__(self, image_path, screen_width, screen_height, stage_height):
+        self.hurdle_queue = deque()
+        self.__img_list = [pygame.image.load(os.path.join(image_path, f"tree{i + 1}.png")) for i in range(4)]
+        self.__size_list = [t.get_rect().size for t in self.__img_list]
+        self.__pos_x_list = [screen_width for i in range(len(self.__img_list))]
+        self.__pos_y_list = [screen_height - stage_height - t[1] for t in self.__size_list]
+
+        self.__initial_speed = 8
+        self.__speed_weight = 0.3
+        self.__target_point = None
+        self.speed = None
+
+    def Reset(self, screen_width):
+        self.__target_point = screen_width / 2
+        self.speed = self.__initial_speed
+        self.hurdle_queue.clear()
+
+    def SpeedUp(self):
+        self.speed += self.__speed_weight
+
+    def MoveHurdle(self):
+        for hurdle in list(self.hurdle_queue):
+            hurdle["pos_x"] -= self.speed
+        if (len(self.hurdle_queue) != 0 and self.hurdle_queue[0]["pos_x"] <= -self.hurdle_queue[0]["size"][0]):
+            self.hurdle_queue.popleft()
+
+    def AddHurdle(self, score, screen_width):
+        if (score <= 30):
+            return
+        if (len(self.hurdle_queue) != 0 and self.hurdle_queue[-1]["pos_x"] > self.__target_point):
+            return
+
+        i = randint(0, len(self.__img_list) - 1)
+
+        self.hurdle_queue.append({
+            "img" : self.__img_list[i],
+            "size" : self.__size_list[i], 
+            "pos_x" : self.__pos_x_list[i],
+            "pos_y" : self.__pos_y_list[i]
+        })
+
+        self.__target_point = randint(
+            -self.hurdle_queue[0]["size"][0], 
+            max([-self.hurdle_queue[0]["size"][0] + 1, int(screen_width / 2 + 180 - (self.speed - 8) * 40)])
+        )
 
 
 class GameManager:
@@ -79,9 +120,6 @@ class GameManager:
         self.__screen_height = 420
         self.__screen = pygame.display.set_mode((self.__screen_width, self.__screen_height))
 
-        # 캐릭터 설정
-        self.__character = Character()
-
         # 파일 위치 반환
         self.__current_path = os.path.dirname(__file__)
         self.__data_path = os.path.join(self.__current_path, "Data")
@@ -102,32 +140,23 @@ class GameManager:
         # 이미지 불러오기
         self.__background_img = pygame.image.load(os.path.join(self.__image_path, "background.png"))
         self.__stage_img = pygame.image.load(os.path.join(self.__image_path, "stage.png"))
-        self.__tree_img_list = [pygame.image.load(os.path.join(self.__image_path, f"tree{i}.png")) for i in range(1, 5)]
 
         # 이미지 사이즈
         self.__stage_size = self.__stage_img.get_rect().size
         self.__stage_pos_x = 0
-        self.__tree_size_list = [t.get_rect().size for t in self.__tree_img_list]
 
-        # 장애물 설정
-        self.__tree_pos_x_list = [self.__screen_width for i in range(len(self.__tree_img_list))]
-        self.__tree_pos_y_list = [self.__screen_height - self.__stage_size[1] - t[1] for t in self.__tree_size_list]
-        self.__speed_weight = 8
-        self.__hurdle_num_que = deque()
-        self.__target_point = self.__screen_width / 2
+        # 오브젝트 설정
+        self.__character = Character(self.__image_path)
+        self.__hurdle = Hurdle(self.__image_path, self.__screen_width, self.__screen_height, self.__stage_size[1])
 
     def CharacterAdd(self, character):
         self.__character = character
         
-    def __SetCharacter(self):
-        character_img_list = [ 
-            pygame.image.load(os.path.join(self.__image_path, "character1.png")),
-            pygame.image.load(os.path.join(self.__image_path, "character2.png"))
-        ]
-        size = character_img_list[0].get_rect().size
+    def __SetObject(self):
         character_pos_x = 80
-        character_pos_y = self.__screen_height - self.__stage_size[1] - size[1]
-        self.__character.Init(character_pos_x, character_pos_y, character_img_list, size)
+        character_pos_y = self.__screen_height - self.__stage_size[1] - self.__character.size[1]
+        self.__character.Reset(character_pos_x, character_pos_y)
+        self.__hurdle.Reset(self.__screen_width)
 
     def GameStart(self):
         while (True):
@@ -181,12 +210,9 @@ class GameManager:
             break
 
     def __GameReset(self):
-        self.__SetCharacter()
-        self.__hurdle_num_que.clear()
+        self.__SetObject()
         self.__score = 0
         self.__running = True
-        self.__speed_weight = 8
-        self.__target_point = self.__screen_width / 2
 
         score_path = os.path.join(self.__save_path, "high_score.txt")
         if (self.__high_score == 0 and os.path.exists(score_path)):
@@ -199,7 +225,7 @@ class GameManager:
         self.__screen.blit(self.__background_img, (0, 0))
         self.__screen.blit(self.__stage_img, (self.__stage_pos_x, self.__screen_height - self.__stage_size[1]))
 
-        for hurdle in self.__hurdle_num_que:
+        for hurdle in self.__hurdle.hurdle_queue:
             self.__screen.blit(hurdle["img"], (hurdle["pos_x"], hurdle["pos_y"]))
 
         self.__screen.blit(self.__character.current_img, (self.__character.pos_x, self.__character.pos_y))
@@ -219,8 +245,8 @@ class GameManager:
     def __Action(self):
         self.__SetScore()
         self.__character.JumpAction()
-        self.__AddHurdle()
-        self.__MoveHurdle()
+        self.__hurdle.AddHurdle(self.__score, self.__screen_width)
+        self.__hurdle.MoveHurdle()
         self.__MoveStage()
 
     def __SetScore(self):
@@ -228,41 +254,18 @@ class GameManager:
         self.__high_score = max([self.__high_score, self.__score])
 
         if (self.__score % 50 >= 49.8):
-            self.__speed_weight += 0.3
+            self.__hurdle.SpeedUp()
 
         if (self.__score % 100 >= 99.8):
             self.__checkPoint_sound.play()
  
     def __MoveStage(self):
-        self.__stage_pos_x -= self.__speed_weight
+        self.__stage_pos_x -= self.__hurdle.speed
         if (self.__stage_pos_x <= -117):
             self.__stage_pos_x = -(-117 - self.__stage_pos_x)
-            
-    def __MoveHurdle(self):
-        for hurdle in list(self.__hurdle_num_que):
-            hurdle["pos_x"] -= self.__speed_weight
-        if (len(self.__hurdle_num_que) != 0 and self.__hurdle_num_que[0]["pos_x"] <= -self.__hurdle_num_que[0]["size"][0]):
-            self.__hurdle_num_que.popleft()
-
-    def __AddHurdle(self):
-        if (self.__score <= 30):
-            return
-        if (len(self.__hurdle_num_que) != 0 and self.__hurdle_num_que[-1]["pos_x"] > self.__target_point):
-            return
-        i = randint(0, len(self.__tree_img_list) - 1)
-        self.__hurdle_num_que.append({
-            "img" : self.__tree_img_list[i],
-            "size" : self.__tree_size_list[i], 
-            "pos_x" : self.__tree_pos_x_list[i],
-            "pos_y" : self.__tree_pos_y_list[i]
-        })
-        self.__target_point = randint(
-            -self.__hurdle_num_que[0]["size"][0], 
-            max([-self.__hurdle_num_que[0]["size"][0] + 1, int(self.__screen_width / 2 + 180 - (self.__speed_weight - 8) * 40)])
-        )
 
     def __CollisionCheck(self):
-        for hurdle in self.__hurdle_num_que:
+        for hurdle in self.__hurdle.hurdle_queue:
             character_rect = self.__character.current_img.get_rect()
             character_rect.top = self.__character.pos_y
             character_rect.left = self.__character.pos_x
