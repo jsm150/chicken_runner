@@ -1,6 +1,6 @@
 import pygame
 import os
-import time
+from datetime import datetime
 from random import randint
 from collections import deque
 
@@ -112,6 +112,7 @@ class GameManager:
         self.__running = True
 
         # 점수 설정
+        self.__twinkle_time = None
         self.__score = 0
         self.__high_score = 0
 
@@ -135,6 +136,7 @@ class GameManager:
         pygame.mixer.music.set_volume(0.1)
         self.__jump_sound = pygame.mixer.Sound(os.path.join(self.__sound_path, "sprites_jump.wav"))
         self.__checkPoint_sound = pygame.mixer.Sound(os.path.join(self.__sound_path, "sprites_checkPoint.wav"))
+        self.__checkPoint_sound.set_volume(0.3)
         self.__die_sound = pygame.mixer.Sound(os.path.join(self.__sound_path, "sprites_die.wav"))
 
         # 이미지 불러오기
@@ -150,9 +152,6 @@ class GameManager:
         self.__character = Character(self.__image_path)
         self.__hurdle = Hurdle(self.__image_path, self.__screen_width, self.__screen_height, self.__stage_size[1])
 
-    def CharacterAdd(self, character):
-        self.__character = character
-        
     def __SetObject(self):
         character_pos_x = 80
         character_pos_y = self.__screen_height - self.__stage_size[1] - self.__character.size[1]
@@ -215,6 +214,7 @@ class GameManager:
             else:
                 continue
             break
+        self.__jump_sound.play()
 
     def __GameReset(self):
         self.__SetObject()
@@ -241,12 +241,21 @@ class GameManager:
         pygame.display.update()
 
     def __DrawScore(self):
-        score_str = str(int(self.__score))
-        high_score_str = str(int(self.__high_score))
-        current_score_font = self.__score_font.render(("0" * (5 - len(score_str)) + score_str), True, (0, 0, 0))
-        high_score_font = self.__score_font.render(("HI " + "0" * (5 - len(high_score_str)) + high_score_str), True, (128, 128, 128))
+        if (self.__twinkle_time == None or ((datetime.now() - self.__twinkle_time).total_seconds()) % 0.5 > 0.25):
+            if (self.__twinkle_time == None):
+                score_str = str(int(self.__score))
 
-        self.__screen.blit(current_score_font, (self.__screen_width - 110, 38))
+            elif (((datetime.now() - self.__twinkle_time).total_seconds()) % 0.5 > 0.25):
+                score_str = str(int(self.__score / 100) * 100)
+
+                if ((datetime.now() - self.__twinkle_time).total_seconds() > 1.99):
+                    self.__twinkle_time = None
+
+            current_score_font = self.__score_font.render(("0" * (5 - len(score_str)) + score_str), True, (0, 0, 0))
+            self.__screen.blit(current_score_font, (self.__screen_width - 110, 38))
+
+        high_score_str = str(int(self.__high_score))
+        high_score_font = self.__score_font.render(("HI " + "0" * (5 - len(high_score_str)) + high_score_str), True, (128, 128, 128))
         self.__screen.blit(high_score_font, (self.__screen_width - 240, 38))
 
     def __Action(self):
@@ -263,12 +272,13 @@ class GameManager:
         if (self.__score % 50 >= 49.8):
             self.__hurdle.SpeedUp()
 
-        if (self.__score % 100 >= 99.8):
+        if (self.__score > 1 and self.__score % 100 < 0.2):
+            self.__twinkle_time = datetime.now()
             self.__checkPoint_sound.play()
  
     def __MoveStage(self):
         self.__stage_pos_x -= self.__hurdle.speed
-        if (self.__stage_pos_x <= -117): # 117 은 반복되는 지형의 넓이이다.
+        if (self.__stage_pos_x <= -117): # 117 은 반복되는 지형의 길이이다.
             self.__stage_pos_x = -(-117 - self.__stage_pos_x)
 
     def __CollisionCheck(self):
