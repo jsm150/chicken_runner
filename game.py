@@ -1,5 +1,6 @@
 import pygame
 import os
+import time
 from random import randint
 from collections import deque
 
@@ -44,6 +45,10 @@ class Character:
             self.__speed = self.__initial_speed
 
 
+class Hurdle:
+    pass
+
+
 class GameManager:
     __instance = None
 
@@ -75,7 +80,7 @@ class GameManager:
         self.__screen = pygame.display.set_mode((self.__screen_width, self.__screen_height))
 
         # 캐릭터 설정
-        self.__character = None
+        self.__character = Character()
 
         # 파일 위치 반환
         self.__current_path = os.path.dirname(__file__)
@@ -91,6 +96,8 @@ class GameManager:
         pygame.mixer.music.load(os.path.join(self.__sound_path, "RustyCourier.mp3"))
         pygame.mixer.music.set_volume(0.1)
         self.__jump_sound = pygame.mixer.Sound(os.path.join(self.__sound_path, "sprites_jump.wav"))
+        self.__checkPoint_sound = pygame.mixer.Sound(os.path.join(self.__sound_path, "sprites_checkPoint.wav"))
+        self.__die_sound = pygame.mixer.Sound(os.path.join(self.__sound_path, "sprites_die.wav"))
 
         # 이미지 불러오기
         self.__background_img = pygame.image.load(os.path.join(self.__image_path, "background.png"))
@@ -142,9 +149,8 @@ class GameManager:
                         self.__character.moving = True
 
             self.__Action()
-            self.__DrawImages()
             self.__CollisionCheck()
-            pygame.display.update()
+            self.__DrawObject()
 
     def __GameEnd(self):
         pygame.mixer.music.stop()
@@ -163,14 +169,16 @@ class GameManager:
         self.__GameWait()
 
     def __GameWait(self):
-        wait = True 
-        while (wait):
+        while (True):
             for event in pygame.event.get():
                 if (event.type == pygame.QUIT):
                     pygame.quit()
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_SPACE:
-                        wait = False
+                        break
+            else:
+                continue
+            break
 
     def __GameReset(self):
         self.__SetCharacter()
@@ -185,40 +193,52 @@ class GameManager:
             with open(score_path, "r", encoding="UTF-8") as r:
                 self.__high_score = int(r.read())
 
-        self.__DrawImages()
-        pygame.display.update()
+        self.__DrawObject()
 
-
-    def __DrawImages(self):
+    def __DrawObject(self):
         self.__screen.blit(self.__background_img, (0, 0))
         self.__screen.blit(self.__stage_img, (self.__stage_pos_x, self.__screen_height - self.__stage_size[1]))
+
         for hurdle in self.__hurdle_num_que:
             self.__screen.blit(hurdle["img"], (hurdle["pos_x"], hurdle["pos_y"]))
+
         self.__screen.blit(self.__character.current_img, (self.__character.pos_x, self.__character.pos_y))
+        self.__DrawScore()
+
+        pygame.display.update()
+
+    def __DrawScore(self):
         score_str = str(int(self.__score))
         high_score_str = str(int(self.__high_score))
         current_score_font = self.__score_font.render(("0" * (5 - len(score_str)) + score_str), True, (0, 0, 0))
         high_score_font = self.__score_font.render(("HI " + "0" * (5 - len(high_score_str)) + high_score_str), True, (128, 128, 128))
+
         self.__screen.blit(current_score_font, (self.__screen_width - 110, 38))
         self.__screen.blit(high_score_font, (self.__screen_width - 240, 38))
 
     def __Action(self):
-        self.__score += 0.2
-        self.__high_score = max([self.__high_score, self.__score])
-        if (int(self.__score) % 50 == 49):
-            self.__speed_weight += 0.06
+        self.__SetScore()
         self.__character.JumpAction()
         self.__AddHurdle()
-        self.__HurdleMove()
-        self.__StageMove()
+        self.__MoveHurdle()
+        self.__MoveStage()
+
+    def __SetScore(self):
+        self.__score += 0.2
+        self.__high_score = max([self.__high_score, self.__score])
+
+        if (self.__score % 50 >= 49.8):
+            self.__speed_weight += 0.3
+
+        if (self.__score % 100 >= 99.8):
+            self.__checkPoint_sound.play()
  
-    def __StageMove(self):
+    def __MoveStage(self):
         self.__stage_pos_x -= self.__speed_weight
         if (self.__stage_pos_x <= -117):
             self.__stage_pos_x = -(-117 - self.__stage_pos_x)
             
-
-    def __HurdleMove(self):
+    def __MoveHurdle(self):
         for hurdle in list(self.__hurdle_num_que):
             hurdle["pos_x"] -= self.__speed_weight
         if (len(self.__hurdle_num_que) != 0 and self.__hurdle_num_que[0]["pos_x"] <= -self.__hurdle_num_que[0]["size"][0]):
@@ -252,6 +272,7 @@ class GameManager:
             hurdle_rect.left = hurdle["pos_x"]
 
             if (character_rect.colliderect(hurdle_rect)):
+                self.__die_sound.play()
                 self.__running = False
                 break
 
@@ -259,6 +280,5 @@ class GameManager:
 #---------------------------
 
 game = GameManager.GetInstance()
-game.CharacterAdd(Character())
 game.GameStart()
 pygame.quit()
