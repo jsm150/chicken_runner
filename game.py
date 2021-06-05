@@ -140,6 +140,7 @@ class GameManager:
         # 이미지 불러오기
         self.__background_img = pygame.image.load(os.path.join(self.__image_path, "background.png"))
         self.__stage_img = pygame.image.load(os.path.join(self.__image_path, "stage.png"))
+        self.__restart_img = pygame.image.load(os.path.join(self.__image_path, "replay_button.png"))
 
         # 이미지 사이즈
         self.__stage_size = self.__stage_img.get_rect().size
@@ -190,9 +191,12 @@ class GameManager:
             w.write(str(int(self.__high_score)))
 
         font = pygame.font.Font(None, 70)
-        msg = font.render("Game Over", True, (255, 255, 0))
-        msg_rect = msg.get_rect(center = (int(self.__screen_width / 2), int(self.__screen_height / 2)))
+        msg = font.render("G a m e   O v e r", True, (255, 255, 0))
+        msg_rect = msg.get_rect(center = (int(self.__screen_width / 2), int(self.__screen_height / 2) - 70))
         self.__screen.blit(msg, msg_rect)
+
+        restart_img_rect = self.__restart_img.get_rect(center = (int(self.__screen_width / 2), int(self.__screen_height / 2) + 20))
+        self.__screen.blit(self.__restart_img, restart_img_rect)
 
         pygame.display.update()
         self.__GameWait()
@@ -204,6 +208,9 @@ class GameManager:
                     pygame.quit()
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_SPACE:
+                        break
+                if event.type == pygame.MOUSEBUTTONUP:
+                    if event.button == 1:
                         break
             else:
                 continue
@@ -261,7 +268,7 @@ class GameManager:
  
     def __MoveStage(self):
         self.__stage_pos_x -= self.__hurdle.speed
-        if (self.__stage_pos_x <= -117):
+        if (self.__stage_pos_x <= -117): # 117 은 반복되는 지형의 넓이이다.
             self.__stage_pos_x = -(-117 - self.__stage_pos_x)
 
     def __CollisionCheck(self):
