@@ -218,6 +218,7 @@ class GameManager:
 
     def __GameReset(self):
         self.__SetObject()
+        self.__twinkle_time = None
         self.__score = 0
         self.__running = True
 
@@ -248,7 +249,7 @@ class GameManager:
             elif (((datetime.now() - self.__twinkle_time).total_seconds()) % 0.5 > 0.25):
                 score_str = str(int(self.__score / 100) * 100)
 
-                if ((datetime.now() - self.__twinkle_time).total_seconds() > 1.99):
+                if ((datetime.now() - self.__twinkle_time).total_seconds() > 1.98):
                     self.__twinkle_time = None
 
             current_score_font = self.__score_font.render(("0" * (5 - len(score_str)) + score_str), True, (0, 0, 0))
@@ -293,6 +294,7 @@ class GameManager:
 
             if (character_rect.colliderect(hurdle_rect)):
                 self.__die_sound.play()
+                self.__twinkle_time = None
                 self.__running = False
                 break
 
