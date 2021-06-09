@@ -1,5 +1,6 @@
 import pygame
 import os
+import json
 from datetime import datetime
 from random import randint
 from collections import deque
@@ -45,7 +46,7 @@ class Hurdle:
     # 장애물 설정
     def __init__(self, image_path, screen_width, screen_height, stage_height):
         self.hurdle_queue = deque()
-        self.__img_list = [pygame.image.load(os.path.join(image_path, f"tree{i + 1}.png")) for i in range(4)]
+        self.__img_list = [pygame.image.load(os.path.join(image_path, f"hurdle{i + 1}.png")) for i in range(4)]
         self.__size_list = [t.get_rect().size for t in self.__img_list]
         self.__pos_x_list = [screen_width for i in range(len(self.__img_list))]
         self.__pos_y_list = [screen_height - stage_height - t[1] for t in self.__size_list]
@@ -90,6 +91,118 @@ class Hurdle:
         )
 
 
+class RankingWindow:
+    def __init__(self, score, score_list, screen, screen_width, screen_height, image_path):
+        self.__screen = screen
+
+        # 점수
+        self.__score = score
+        self.__score_list = score_list
+
+        # 이미지 불러오기
+        self.__score_window_img = pygame.image.load(os.path.join(image_path, "score_window.png"))
+        self.__input_window_img = pygame.image.load(os.path.join(image_path, "input_window.png"))
+
+        # 창 위치 설정
+        self.__score_window_pos_x = 205
+        self.__score_window_pos_y = 80
+        self.__input_window_pos_x = self.__score_window_pos_x + 15
+        self.__input_window_pos_y = self.__score_window_pos_y + self.__score_window_img.get_rect().size[1] - self.__input_window_img.get_rect().size[1] - 15
+
+        self.__title_offset_y = self.__score_window_pos_y + 80
+
+        # 제목
+        self.__title_letter = pygame.font.Font(None, 50).render("ENTER YOUR NAME!", True, (255, 255, 0))
+        self.__title_letter_rect = self.__title_letter.get_rect(center = (int(screen_width / 2), int(screen_height / 2) - 100))
+
+        # 글자 폰트
+        self.__font = pygame.font.Font(None, 30)
+
+        # Ranking
+        self.__rank_letter = self.__font.render("Ranking", True, (219, 68, 85))
+        self.__rank_pos_x = self.__score_window_pos_x + 60
+        self.__rank_letter_rect = (self.__rank_pos_x, self.__title_offset_y)
+
+        # Score
+        self.__score_letter = self.__font.render("Score", True, (219, 68, 85))
+        self.__score_pos_x = self.__score_window_pos_x + 240
+        self.__score_letter_rect = (self.__score_pos_x, self.__title_offset_y)
+
+        # Name
+        self.__name_letter = self.__font.render("Name", True, (219, 68, 85))
+        self.__name_pos_x =self.__score_window_pos_x + 420
+        self.__name_letter_rect = (self.__name_pos_x, self.__title_offset_y)
+
+        # 입력받는 글자 폰트
+        self.__name_font = pygame.font.Font(None, 45)
+
+        # 입력받는 글자 설정 
+        self.__user_name = ""
+        self.__user_name_letter = self.__name_font.render(self.__user_name, True, (0, 0, 0))
+        self.__user_name_rect = self.__user_name_letter.get_rect(topleft = (self.__input_window_pos_x + 5, self.__input_window_pos_y + 10))
+
+        # 커서
+        self.__cursor = pygame.Rect(self.__user_name_rect.topright, (3, self.__user_name_rect.height))
+
+    def Open(self):
+        start_time = datetime.now()
+        while (True):
+            for event in pygame.event.get():
+                if (event.type == pygame.QUIT):
+                    pygame.quit()
+                if (event.type == pygame.KEYDOWN):
+                    if (event.key == pygame.K_RETURN and len(self.__user_name) > 0):
+                        break
+                    if (event.key == pygame.K_SPACE or event.key == pygame.K_RETURN):
+                        continue
+                    if (event.key == pygame.K_BACKSPACE):
+                        if len(self.__user_name) > 0:
+                            self.__user_name = self.__user_name[:-1]
+                    elif (len(self.__user_name) < 7):
+                        self.__user_name += event.unicode
+
+                    self.__user_name_letter = self.__name_font.render(self.__user_name, True, (255, 255, 255))
+                    self.__user_name_rect = self.__user_name_letter.get_rect(topleft = (self.__input_window_pos_x + 5, self.__input_window_pos_y + 10))
+                    self.__cursor.topleft = self.__user_name_rect.topright
+            else:
+                self.__DrawImage(start_time, True)
+                continue
+            break
+        
+        self.__score_list[self.__user_name] = int(self.__score)
+        self.__DrawImage(start_time, False)
+
+    def __DrawImage(self, start_time, can_input_name):
+        self.__screen.blit(self.__score_window_img, (self.__score_window_pos_x, self.__score_window_pos_y))
+        
+        self.__screen.blit(self.__title_letter, self.__title_letter_rect)
+        self.__screen.blit(self.__rank_letter, self.__rank_letter_rect)
+        self.__screen.blit(self.__score_letter, self.__score_letter_rect)
+        self.__screen.blit(self.__name_letter, self.__name_letter_rect)
+
+        offset_y = 40
+        high_score_list = sorted(self.__score_list.items(), key = lambda x : x[1], reverse = True)[:3]
+        st_nd_rd = {1 : "ST", 2 : "ND", 3 : "RD"}
+        for i in range(len(high_score_list)):
+            rank = self.__font.render(f"{i + 1}{st_nd_rd[i + 1] if (i + 1 <= 3) else 'TH'}", True, (0, 0, 0))
+            self.__screen.blit(rank, (self.__rank_pos_x + 20, self.__title_offset_y + offset_y * (i + 1)))
+
+            score = self.__font.render(str(high_score_list[i][1]), True, (0, 0, 0))
+            self.__screen.blit(score, (self.__score_pos_x, self.__title_offset_y + offset_y * (i + 1)))
+
+            name = self.__font.render(high_score_list[i][0], True, (0, 0, 0))
+            self.__screen.blit(name, (self.__name_pos_x - 10, self.__title_offset_y + offset_y * (i + 1)))
+
+        if (can_input_name):
+            self.__screen.blit(self.__input_window_img, (self.__input_window_pos_x, self.__input_window_pos_y))
+            self.__screen.blit(self.__user_name_letter, (self.__input_window_pos_x + 5, self.__input_window_pos_y + 10))
+
+            if ((datetime.now() - start_time).total_seconds() % 1 < 0.5):
+                pygame.draw.rect(self.__screen, (255, 255, 255), self.__cursor)
+
+        pygame.display.update()
+
+
 class GameManager:
     __instance = None
 
@@ -113,6 +226,7 @@ class GameManager:
 
         # 점수 설정
         self.__twinkle_time = None
+        self.__score_list = {}
         self.__score = 0
         self.__high_score = 0
 
@@ -143,7 +257,7 @@ class GameManager:
         self.__background_img = pygame.image.load(os.path.join(self.__image_path, "background.png"))
         self.__stage_img = pygame.image.load(os.path.join(self.__image_path, "stage.png"))
         self.__restart_img = pygame.image.load(os.path.join(self.__image_path, "replay_button.png"))
-
+        
         # 이미지 사이즈
         self.__stage_size = self.__stage_img.get_rect().size
         self.__stage_pos_x = 0
@@ -183,18 +297,16 @@ class GameManager:
 
     def __GameEnd(self):
         pygame.mixer.music.stop()
+
+        RankingWindow(self.__score, self.__score_list, self.__screen, self.__screen_width, self.__screen_height, self.__image_path).Open()
+
         if (not os.path.exists(self.__save_path)):
             os.makedirs(self.__save_path)
 
-        with open(os.path.join(self.__save_path, "high_score.txt"), "w", encoding="UTF-8") as w:
-            w.write(str(int(self.__high_score)))
+        with open(os.path.join(self.__save_path, "score_list.json"), "w", encoding="UTF-8") as w:
+            json.dump(self.__score_list, w)
 
-        font = pygame.font.Font(None, 70)
-        msg = font.render("G a m e   O v e r", True, (255, 255, 0))
-        msg_rect = msg.get_rect(center = (int(self.__screen_width / 2), int(self.__screen_height / 2) - 70))
-        self.__screen.blit(msg, msg_rect)
-
-        restart_img_rect = self.__restart_img.get_rect(center = (int(self.__screen_width / 2), int(self.__screen_height / 2) + 20))
+        restart_img_rect = self.__restart_img.get_rect(center = (int(self.__screen_width / 2), int(self.__screen_height / 2) + 130))
         self.__screen.blit(self.__restart_img, restart_img_rect)
 
         pygame.display.update()
@@ -222,10 +334,11 @@ class GameManager:
         self.__score = 0
         self.__running = True
 
-        score_path = os.path.join(self.__save_path, "high_score.txt")
+        score_path = os.path.join(self.__save_path, "score_list.json")
         if (self.__high_score == 0 and os.path.exists(score_path)):
             with open(score_path, "r", encoding="UTF-8") as r:
-                self.__high_score = int(r.read())
+                self.__score_list = json.load(r)
+            self.__high_score = max(self.__score_list.values())
 
         self.__DrawObject()
 
