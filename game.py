@@ -92,7 +92,7 @@ class Hurdle:
 
 
 class RankingWindow:
-    def __init__(self, score, score_list, screen, screen_width, screen_height, image_path):
+    def __init__(self, score, score_list, screen, screen_width, screen_height, image_path, font_path):
         self.__screen = screen
 
         # 점수
@@ -112,11 +112,11 @@ class RankingWindow:
         self.__title_offset_y = self.__score_window_pos_y + 80
 
         # 제목
-        self.__title_letter = pygame.font.Font(None, 50).render("ENTER YOUR NAME!", True, (255, 255, 0))
+        self.__title_letter = pygame.font.Font(font_path, 50).render("ENTER YOUR NAME!", True, (255, 255, 0))
         self.__title_letter_rect = self.__title_letter.get_rect(center = (int(screen_width / 2), int(screen_height / 2) - 100))
 
         # 글자 폰트
-        self.__font = pygame.font.Font(None, 30)
+        self.__font = pygame.font.Font(font_path, 30)
 
         # Ranking
         self.__rank_letter = self.__font.render("Ranking", True, (219, 68, 85))
@@ -134,7 +134,7 @@ class RankingWindow:
         self.__name_letter_rect = (self.__name_pos_x, self.__title_offset_y)
 
         # 입력받는 글자 폰트
-        self.__name_font = pygame.font.Font(None, 45)
+        self.__name_font = pygame.font.Font(font_path, 45)
 
         # 입력받는 글자 설정 
         self.__user_name = ""
@@ -142,7 +142,7 @@ class RankingWindow:
         self.__user_name_rect = self.__user_name_letter.get_rect(topleft = (self.__input_window_pos_x + 5, self.__input_window_pos_y + 10))
 
         # 커서
-        self.__cursor = pygame.Rect(self.__user_name_rect.topright, (3, self.__user_name_rect.height))
+        self.__cursor = pygame.Rect(self.__user_name_rect.topright, (3, self.__user_name_rect.height - 13))
 
     def Open(self):
         start_time = datetime.now()
@@ -151,9 +151,9 @@ class RankingWindow:
                 if (event.type == pygame.QUIT):
                     pygame.quit()
                 if (event.type == pygame.KEYDOWN):
-                    if (event.key == pygame.K_RETURN and len(self.__user_name) > 0):
+                    if (event.key == pygame.K_RETURN):
                         break
-                    if (event.key == pygame.K_SPACE or event.key == pygame.K_RETURN):
+                    if (event.key == pygame.K_SPACE):
                         continue
                     if (event.key == pygame.K_BACKSPACE):
                         if len(self.__user_name) > 0:
@@ -169,7 +169,9 @@ class RankingWindow:
                 continue
             break
         
-        self.__score_list[self.__user_name] = int(self.__score)
+        if (self.__user_name != ""):
+            self.__score_list[self.__user_name] = int(self.__score)
+
         self.__DrawImage(start_time, False)
 
     def __DrawImage(self, start_time, can_input_name):
@@ -195,7 +197,7 @@ class RankingWindow:
 
         if (can_input_name):
             self.__screen.blit(self.__input_window_img, (self.__input_window_pos_x, self.__input_window_pos_y))
-            self.__screen.blit(self.__user_name_letter, (self.__input_window_pos_x + 5, self.__input_window_pos_y + 10))
+            self.__screen.blit(self.__user_name_letter, (self.__input_window_pos_x + 5, self.__input_window_pos_y))
 
             if ((datetime.now() - start_time).total_seconds() % 1 < 0.5):
                 pygame.draw.rect(self.__screen, (255, 255, 255), self.__cursor)
@@ -241,9 +243,10 @@ class GameManager:
         self.__image_path = os.path.join(self.__data_path, "Img")
         self.__sound_path = os.path.join(self.__data_path, "Sound")
         self.__save_path = os.path.join(self.__data_path, "Save")
+        self.__font_path = os.path.join(self.__data_path, "Font", "game_font.ttf")
 
         # 폰트 설정
-        self.__score_font = pygame.font.Font(os.path.join(self.__data_path, "Font", "game_font.ttf"), 35)
+        self.__score_font = pygame.font.Font(self.__font_path, 35)
 
         # 사운드 불러오기
         pygame.mixer.music.load(os.path.join(self.__sound_path, "RustyCourier.mp3"))
@@ -298,7 +301,7 @@ class GameManager:
     def __GameEnd(self):
         pygame.mixer.music.stop()
 
-        RankingWindow(self.__score, self.__score_list, self.__screen, self.__screen_width, self.__screen_height, self.__image_path).Open()
+        RankingWindow(self.__score, self.__score_list, self.__screen, self.__screen_width, self.__screen_height, self.__image_path, self.__font_path).Open()
 
         if (not os.path.exists(self.__save_path)):
             os.makedirs(self.__save_path)
@@ -318,7 +321,7 @@ class GameManager:
                 if (event.type == pygame.QUIT):
                     pygame.quit()
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_SPACE:
+                    if (event.key == pygame.K_SPACE or event.key == pygame.K_RETURN):
                         break
                 if event.type == pygame.MOUSEBUTTONUP:
                     if event.button == 1:
