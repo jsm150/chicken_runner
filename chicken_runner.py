@@ -306,8 +306,9 @@ class GameManager:
         if (not os.path.exists(self.__save_path)):
             os.makedirs(self.__save_path)
 
-        with open(os.path.join(self.__save_path, "score_list.json"), "w", encoding="UTF-8") as w:
-            json.dump(self.__score_list, w)
+        if (len(self.__score_list) > 0):
+            with open(os.path.join(self.__save_path, "score_list.json"), "w", encoding="UTF-8") as w:
+                json.dump(self.__score_list, w)
 
         restart_img_rect = self.__restart_img.get_rect(center = (int(self.__screen_width / 2), int(self.__screen_height / 2) + 130))
         self.__screen.blit(self.__restart_img, restart_img_rect)
