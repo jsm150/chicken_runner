@@ -6,6 +6,10 @@ from random import randint
 from collections import deque
 
 
+class ProgramCloseError(Exception):
+    pass
+
+
 class Character:
     def __init__(self, image_path):
         # 캐릭터 설정
@@ -149,7 +153,7 @@ class RankingWindow:
         while (True):
             for event in pygame.event.get():
                 if (event.type == pygame.QUIT):
-                    pygame.quit()
+                    raise ProgramCloseError
                 if (event.type == pygame.KEYDOWN):
                     if (event.key == pygame.K_RETURN):
                         break
@@ -276,10 +280,13 @@ class GameManager:
         self.__hurdle.Reset(self.__screen_width)
 
     def GameStart(self):
-        while (True):
-            self.__GameReset()
-            self.__GamePlay()
-            self.__GameEnd()
+        try:
+            while (True):
+                self.__GameReset()
+                self.__GamePlay()
+                self.__GameEnd()
+        except ProgramCloseError:
+            pass
 
     def __GamePlay(self):
         pygame.mixer.music.play(-1, 0, 0)
@@ -287,7 +294,7 @@ class GameManager:
             self.__clock.tick(60)
             for event in pygame.event.get():
                 if (event.type == pygame.QUIT):
-                    pygame.quit()
+                    raise ProgramCloseError
 
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_SPACE and self.__character.moving == False:
@@ -320,7 +327,7 @@ class GameManager:
         while (True):
             for event in pygame.event.get():
                 if (event.type == pygame.QUIT):
-                    pygame.quit()
+                    raise ProgramCloseError
                 if event.type == pygame.KEYDOWN:
                     if (event.key == pygame.K_SPACE or event.key == pygame.K_RETURN):
                         break
